@@ -59,29 +59,51 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-blue: var(--blue);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+  --color-purple: var(--purple);
+  --color-spotify: var(--spotify);
+  --color-track: var(--track);
+  --color-ring-track: var(--ring-track);
+  --color-red-foreground: var(--red-foreground);
+  --color-spotify-foreground: var(--spotify-foreground);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --shadow-glow-red: 0 0 20px color-mix(in oklab, var(--red) 24%, transparent);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --radius: 0.75rem;
+  --background: oklch(0.15 0.012 265);
+  --foreground: oklch(0.94 0.01 255);
+  --card: oklch(0.2 0.018 265);
+  --card-foreground: oklch(0.94 0.01 255);
+  --popover: oklch(0.2 0.018 265);
+  --popover-foreground: oklch(0.94 0.01 255);
+  --primary: oklch(0.67 0.15 260);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.245 0.021 264);
+  --secondary-foreground: oklch(0.94 0.01 255);
+  --muted: oklch(0.25 0.018 264);
+  --muted-foreground: oklch(0.67 0.025 258);
+  --accent: oklch(0.3 0.04 260);
+  --accent-foreground: oklch(0.93 0.02 260);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --border: oklch(0.3 0.025 264);
+  --input: oklch(0.3 0.025 264);
+  --ring: oklch(0.67 0.15 260);
+  --blue: oklch(0.67 0.15 260);
+  --green: oklch(0.72 0.19 145);
+  --amber: oklch(0.77 0.17 70);
+  --red: oklch(0.64 0.22 25);
+  --purple: oklch(0.72 0.13 305);
+  --spotify: oklch(0.68 0.2 145);
+  --track: oklch(0.25 0.018 264);
+  --ring-track: oklch(0.26 0.02 264);
+  --red-foreground: oklch(0.99 0 0);
+  --spotify-foreground: oklch(0.13 0.02 145);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -140,5 +162,43 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    overflow-x: hidden;
   }
+
+  button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 }
+
+@utility widget {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, color-mix(in oklab, var(--card) 96%, var(--primary) 4%), var(--card));
+  box-shadow: 0 14px 35px oklch(0.04 0.01 265 / 35%);
+  transition: border-color 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+  &:hover { border-color: color-mix(in oklab, var(--primary) 38%, var(--border)); filter: brightness(1.035); box-shadow: 0 18px 42px oklch(0.04 0.01 265 / 44%), 0 0 18px color-mix(in oklab, var(--primary) 7%, transparent); }
+}
+
+@utility widget-editing {
+  border-color: color-mix(in oklab, var(--primary) 70%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 22%, transparent), 0 16px 40px oklch(0.04 0.01 265 / 45%);
+}
+
+@utility canvas {
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px);
+  background-size: 192px 192px;
+}
+
+@utility gauge-ring {
+  transition: stroke-dashoffset 600ms cubic-bezier(.2,.8,.2,1);
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
