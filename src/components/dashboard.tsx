@@ -11,6 +11,11 @@ const PITCH = 192;
 const CANVAS_WIDTH = 1524;
 const CANVAS_HEIGHT = 792;
 const STORAGE_KEY = "accusense-layout-v1";
+const toneClasses = {
+  blue: { bg: "bg-blue", stroke: "stroke-blue" }, green: { bg: "bg-green", stroke: "stroke-green" },
+  amber: { bg: "bg-amber", stroke: "stroke-amber" }, red: { bg: "bg-red", stroke: "stroke-red" },
+  purple: { bg: "bg-purple", stroke: "stroke-purple" },
+} as const;
 
 type Position = { x: number; y: number };
 type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
@@ -51,7 +56,7 @@ function Ring({ value, color = "blue", size = 132, stroke = 6, children }: { val
     <div className="relative grid place-items-center" style={{ width: size, height: size }}>
       <svg className="-rotate-90" width={size} height={size} aria-hidden="true">
         <circle className="stroke-ring-track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} />
-        <circle className={cn("gauge-ring", `stroke-${color}`)} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value / 100)} />
+        <circle className={cn("gauge-ring", toneClasses[color].stroke)} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value / 100)} />
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
     </div>
@@ -59,7 +64,7 @@ function Ring({ value, color = "blue", size = 132, stroke = 6, children }: { val
 }
 
 function MetricBar({ value, tone = "blue" }: { value: number; tone?: "blue" | "amber" | "red" | "green" | "purple" }) {
-  return <div className="h-1 overflow-hidden rounded-full bg-track"><div className={cn("h-full rounded-full transition-all duration-700", `bg-${tone}`)} style={{ width: `${value}%` }} /></div>;
+  return <div className="h-1 overflow-hidden rounded-full bg-track"><div className={cn("h-full rounded-full transition-all duration-700", toneClasses[tone].bg)} style={{ width: `${value}%` }} /></div>;
 }
 
 function GitHubKanban() {
@@ -68,7 +73,7 @@ function GitHubKanban() {
     ["Revisando", "purple", issues.slice(4, 5)], ["Pronto", "amber", issues.slice(5)],
   ] as const;
   return <div className="grid h-full grid-cols-4 gap-2">{columns.map(([name, tone, cards]) => <div className="min-w-0 overflow-hidden rounded-lg bg-secondary/45" key={name}>
-    <div className="flex items-center gap-1.5 border-b border-border px-2 py-2 text-[10px] font-semibold"><span className={cn("h-1.5 w-1.5 rounded-full", `bg-${tone}`)} /> <span className="truncate">{name}</span><span className="ml-auto rounded-full bg-muted px-1.5 text-muted-foreground">{cards.length}</span></div>
+    <div className="flex items-center gap-1.5 border-b border-border px-2 py-2 text-[10px] font-semibold"><span className={cn("h-1.5 w-1.5 rounded-full", toneClasses[tone].bg)} /> <span className="truncate">{name}</span><span className="ml-auto rounded-full bg-muted px-1.5 text-muted-foreground">{cards.length}</span></div>
     <div className="h-[280px] space-y-2 overflow-y-auto p-2">{cards.map(([repo, num, title, avatar]) => <div className="rounded-lg border border-border bg-card p-2.5 transition hover:border-primary/60 hover:brightness-110" key={num}>
       <div className="flex items-center gap-1 text-[9px] text-muted-foreground"><Code2 className="size-3"/><span className="truncate">{repo}</span><span>{num}</span></div>
       <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-foreground">{title}</p>
