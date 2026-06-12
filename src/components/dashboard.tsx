@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
   Bot, CheckCircle2, ChevronLeft, ChevronRight, CloudSun, Code2, Edit3, Gauge, GitPullRequest,
-  Grip, Pause, Play, RefreshCcw, RotateCcw, SkipBack, SkipForward, Sparkles,
-  Star, Sun, Timer, Users, Wind, XCircle,
+  Grip, LayoutDashboard, Pause, Play, Plus, RefreshCcw, RotateCcw, SkipBack, SkipForward, Sparkles,
+  Star, Sun, Timer, Trash2, Users, Wind, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const CANVAS_WIDTH = 1524;
 const CANVAS_HEIGHT = 792;
-const STORAGE_KEY = "accusense-layout-v1";
+const LEGACY_STORAGE_KEY = "accusense-layout-v1";
+const TABS_STORAGE_KEY = "accusense-dashboard-tabs-v1";
 const toneClasses = {
   blue: { bg: "bg-blue", stroke: "stroke-blue" }, green: { bg: "bg-green", stroke: "stroke-green" },
   amber: { bg: "bg-amber", stroke: "stroke-amber" }, red: { bg: "bg-red", stroke: "stroke-red" },
@@ -18,6 +19,7 @@ const toneClasses = {
 
 type Position = { x: number; y: number };
 type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
+type DashboardTab = { id: string; name: string; positions: Record<string, Position> };
 
 const issues = [
   ["polaris-api", "#428", "Corrigir cache do endpoint de métricas", "LC"],
@@ -189,7 +191,7 @@ function Widget({ spec, position, editable, onDragEnd }: { spec: WidgetSpec; pos
 }
 
 export function Dashboard() {
-  const [clock,setClock]=useState(""),[editable,setEditable]=useState(false);
+  const [clock,setClock]=useState(""),[editable,setEditable]=useState(false),[hydrated,setHydrated]=useState(false);
   const specs: WidgetSpec[] = useMemo(()=>[
     {id:"kanban",title:"GitHub Kanban",icon:<GitPullRequest className="size-3.5"/>,width:540,height:372,x:0,y:0,content:<GitHubKanban/>},
     {id:"spotify",title:"Spotify Now Playing",icon:<Play className="size-3.5"/>,width:282,height:372,x:576,y:0,content:<SpotifyWidget/>},
@@ -203,11 +205,32 @@ export function Dashboard() {
     {id:"pipeline",title:"CI/CD Pipeline",icon:<Code2 className="size-3.5"/>,width:372,height:180,x:1152,y:420,content:<Pipeline/>},
     {id:"yesno",title:"Sim ou Não",icon:<Sparkles className="size-3.5"/>,width:282,height:180,x:1242,y:612,content:<YesNoWidget/>},
   ],[]);
-  const defaults=useMemo(()=>Object.fromEntries(specs.map(s=>[s.id,{x:s.x,y:s.y}])),[specs]); const [positions,setPositions]=useState<Record<string,Position>>(defaults);
-  useEffect(()=>{const saved=localStorage.getItem(STORAGE_KEY);if(saved){try{setPositions({...defaults,...JSON.parse(saved)})}catch{localStorage.removeItem(STORAGE_KEY)}}},[defaults]);
+  const defaults=useMemo(()=>Object.fromEntries(specs.map(s=>[s.id,{x:s.x,y:s.y}])),[specs]);
+  const [tabs,setTabs]=useState<DashboardTab[]>([{id:"main",name:"Principal",positions:defaults}]);
+  const [activeTabId,setActiveTabId]=useState("main");
+  const activeTab=tabs.find(tab=>tab.id===activeTabId)??tabs[0];
+  useEffect(()=>{
+    const savedTabs=localStorage.getItem(TABS_STORAGE_KEY);
+    if(savedTabs){
+      try {
+        const parsed=JSON.parse(savedTabs) as {tabs?:DashboardTab[];activeTabId?:string};
+        if(parsed.tabs?.length){setTabs(parsed.tabs.map(tab=>({...tab,positions:{...defaults,...tab.positions}})));setActiveTabId(parsed.tabs.some(tab=>tab.id===parsed.activeTabId)?parsed.activeTabId??parsed.tabs[0].id:parsed.tabs[0].id)}
+      } catch { localStorage.removeItem(TABS_STORAGE_KEY); }
+    } else {
+      const legacy=localStorage.getItem(LEGACY_STORAGE_KEY);
+      if(legacy){try{setTabs([{id:"main",name:"Principal",positions:{...defaults,...JSON.parse(legacy)}}])}catch{localStorage.removeItem(LEGACY_STORAGE_KEY)}}
+    }
+    setHydrated(true);
+  },[defaults]);
+  useEffect(()=>{if(hydrated)localStorage.setItem(TABS_STORAGE_KEY,JSON.stringify({tabs,activeTabId}))},[tabs,activeTabId,hydrated]);
   useEffect(()=>{const tick=()=>setClock(new Intl.DateTimeFormat("pt-BR",{weekday:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(new Date()));tick();const id=window.setInterval(tick,1000);return()=>clearInterval(id)},[]);
-  const move=(id:string,p:Position)=>setPositions(old=>{const next={...old,[id]:p};localStorage.setItem(STORAGE_KEY,JSON.stringify(next));return next});
-  const reset=()=>{localStorage.removeItem(STORAGE_KEY);window.location.reload()};
+  const move=(id:string,p:Position)=>setTabs(old=>old.map(tab=>tab.id===activeTabId?{...tab,positions:{...tab.positions,[id]:p}}:tab));
+  const reset=()=>setTabs(old=>old.map(tab=>tab.id===activeTabId?{...tab,positions:defaults}:tab));
+  const addTab=()=>{const id=`dashboard-${Date.now()}`;const tab={id,name:`Dashboard ${tabs.length+1}`,positions:{...defaults}};setTabs(old=>[...old,tab]);setActiveTabId(id);setEditable(false)};
+  const renameTab=(tab:DashboardTab)=>{const name=window.prompt("Nome do dashboard",tab.name)?.trim();if(name)setTabs(old=>old.map(item=>item.id===tab.id?{...item,name:name.slice(0,28)}:item))};
+  const removeTab=(id:string)=>{if(tabs.length===1)return;const index=tabs.findIndex(tab=>tab.id===id);const next=tabs.filter(tab=>tab.id!==id);setTabs(next);if(activeTabId===id)setActiveTabId(next[Math.max(0,index-1)].id)};
   return <main className="min-h-screen bg-background text-foreground"><nav className="fixed inset-x-0 top-0 z-50 h-12 border-b border-border bg-background/90 backdrop-blur-xl"><div className="grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:flex"><div className="flex min-w-0 items-center gap-2"><div className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"><Gauge className="size-4"/></div><div className="truncate text-sm font-bold tracking-tight">Accusense <span className="font-normal text-muted-foreground">dev</span></div></div><div className="flex shrink-0 items-center gap-1.5 sm:ml-auto"><Button variant={editable?"secondary":"ghost"} size="sm" onClick={()=>setEditable(v=>!v)}><Edit3/><span className="hidden sm:inline">{editable?"Concluir":"Editar layout"}</span></Button><Button variant="ghost" size="sm" onClick={reset}><RefreshCcw/><span className="hidden md:inline">Resetar</span></Button><div className="hidden border-l border-border pl-3 font-mono text-[10px] text-muted-foreground lg:block">{clock}</div><div className="ml-1 flex items-center gap-2 rounded-full bg-green/10 px-2.5 py-1 text-[9px] font-semibold text-green"><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-green opacity-60"/><span className="relative inline-flex size-2 rounded-full bg-green"/></span>3 services live</div></div></div></nav>
-    <section className="pt-12"><div className="overflow-auto p-3"><div className="canvas relative mx-auto" style={{width:CANVAS_WIDTH,height:CANVAS_HEIGHT}}>{specs.map(s=><Widget key={s.id} spec={s} position={positions[s.id]??{x:s.x,y:s.y}} editable={editable} onDragEnd={move}/>)}</div></div></section></main>;
+    <section className="pb-24 pt-12"><div className="overflow-auto p-3"><div className="canvas relative mx-auto" style={{width:CANVAS_WIDTH,height:CANVAS_HEIGHT}}>{activeTab&&specs.map(s=><Widget key={`${activeTab.id}-${s.id}`} spec={s} position={activeTab.positions[s.id]??{x:s.x,y:s.y}} editable={editable} onDragEnd={move}/>)}</div></div></section>
+    <nav aria-label="Dashboards" className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pointer-events-none"><div className="dashboard-dock pointer-events-auto flex max-w-full items-end gap-1 overflow-x-auto rounded-2xl border border-border bg-card/85 p-1.5 shadow-2xl backdrop-blur-2xl">{tabs.map(tab=><div key={tab.id} className="group relative flex shrink-0 items-center"><Button title={`${tab.name} — duplo clique para renomear`} variant={tab.id===activeTabId?"secondary":"ghost"} size="sm" className={cn("dock-app h-12 min-w-12 flex-col gap-0.5 rounded-xl px-2",tab.id===activeTabId&&"text-primary")} onClick={()=>{setActiveTabId(tab.id);setEditable(false)}} onDoubleClick={()=>renameTab(tab)}><LayoutDashboard className="size-5"/><span className="max-w-24 truncate text-[8px]">{tab.name}</span></Button>{tabs.length>1&&tab.id===activeTabId&&<Button title="Remover dashboard" variant="destructive" size="iconSm" className="absolute -right-1.5 -top-1.5 size-5 rounded-full opacity-0 shadow-lg transition-opacity group-hover:opacity-100 focus:opacity-100" onClick={()=>removeTab(tab.id)}><Trash2 className="size-2.5"/><span className="sr-only">Remover {tab.name}</span></Button>}<span className={cn("absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary transition-opacity",tab.id===activeTabId?"opacity-100":"opacity-0")}/></div>)}<div className="mx-1 h-10 w-px shrink-0 self-center bg-border"/><Button title="Novo dashboard" variant="ghost" size="icon" className="dock-app size-12 shrink-0 rounded-xl" onClick={addTab}><Plus className="size-5"/><span className="sr-only">Novo dashboard</span></Button></div></nav>
+  </main>;
 }
