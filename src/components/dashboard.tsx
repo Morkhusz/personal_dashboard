@@ -7,7 +7,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const PITCH = 192;
 const CANVAS_WIDTH = 1524;
 const CANVAS_HEIGHT = 792;
 const STORAGE_KEY = "accusense-layout-v1";
@@ -100,6 +99,12 @@ function OpenAICosts() {
     <div className="grid grid-cols-3 gap-2">{[["GPT-4o", "$176"], ["Embeddings", "$24"], ["Whisper", "$11"]].map(x => <div className="rounded-md bg-secondary px-2 py-1.5" key={x[0]}><div className="text-[8px] text-muted-foreground">{x[0]}</div><b className="text-[10px]">{x[1]}</b></div>)}</div></div>;
 }
 
+function AnthropicCosts() {
+  return <div><div className="grid grid-cols-2 gap-3"><div><div className="text-[9px] text-muted-foreground">Hoje</div><div className="mt-1 text-xl font-bold text-purple">$9,82</div></div><div><div className="flex justify-between text-[9px]"><span className="text-muted-foreground">Mês atual</span><span>38%</span></div><div className="mt-2"><MetricBar value={38} tone="purple"/></div><div className="mt-1 text-[9px] text-muted-foreground">$189 / $500</div></div></div>
+    <div className="my-3 rounded-md border border-purple/25 bg-purple/10 px-2 py-1 text-[8px] text-purple">38% do limite mensal utilizado</div>
+    <div className="grid grid-cols-3 gap-2">{[["Sonnet", "$142"], ["Haiku", "$31"], ["Opus", "$16"]].map(x => <div className="rounded-md bg-secondary px-2 py-1.5" key={x[0]}><div className="text-[8px] text-muted-foreground">{x[0]}</div><b className="text-[10px]">{x[1]}</b></div>)}</div></div>;
+}
+
 function ClaudeUsage() {
   return <div><div className="absolute right-4 top-3 rounded-full bg-purple/15 px-2 py-1 text-[8px] text-purple">Sonnet 4.5</div>{[["Limite 5h", 67, "amber"], ["Limite semanal", 76, "red"]].map(([l, v, t]) => <div className="mb-3" key={l}><div className="mb-1.5 flex justify-between text-[9px]"><span className="text-muted-foreground">{l}</span><span>{v}%</span></div><MetricBar value={Number(v)} tone={t as "amber" | "red"}/></div>)}<div className="mt-4 grid grid-cols-3 gap-2">{[["tokens hoje", "184k"], ["custo mês", "$94"], ["mensagens", "218"]].map(x => <div className="rounded-md bg-secondary p-1.5 text-center" key={x[0]}><b className="block text-[10px]">{x[1]}</b><span className="text-[7px] text-muted-foreground">{x[0]}</span></div>)}</div></div>;
 }
@@ -178,7 +183,7 @@ function Widget({ spec, position, editable, onDragEnd }: { spec: WidgetSpec; pos
   const drag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null); const [temp,setTemp]=useState<Position|null>(null);
   const onPointerDown=(e:ReactPointerEvent)=>{if(!editable)return; e.currentTarget.setPointerCapture(e.pointerId); drag.current={sx:e.clientX,sy:e.clientY,ox:position.x,oy:position.y};};
   const onPointerMove=(e:ReactPointerEvent)=>{if(!drag.current)return; setTemp({x:Math.max(0,Math.min(CANVAS_WIDTH-spec.width,drag.current.ox+e.clientX-drag.current.sx)),y:Math.max(0,Math.min(CANVAS_HEIGHT-spec.height,drag.current.oy+e.clientY-drag.current.sy))})};
-  const onPointerUp=()=>{if(!drag.current)return; const p=temp??position; const snapped={x:Math.max(0,Math.min(CANVAS_WIDTH-spec.width,Math.round(p.x/PITCH)*PITCH)),y:Math.max(0,Math.min(CANVAS_HEIGHT-spec.height,Math.round(p.y/PITCH)*PITCH))};drag.current=null;setTemp(null);onDragEnd(spec.id,snapped)};
+  const onPointerUp=()=>{if(!drag.current)return; const p=temp??position; const placed={x:Math.max(0,Math.min(CANVAS_WIDTH-spec.width,Math.round(p.x))),y:Math.max(0,Math.min(CANVAS_HEIGHT-spec.height,Math.round(p.y)))};drag.current=null;setTemp(null);onDragEnd(spec.id,placed)};
   const p=temp??position;
   return <article className={cn("widget absolute flex flex-col",editable&&"widget-editing")} style={{width:spec.width,height:spec.height,transform:`translate3d(${p.x}px, ${p.y}px, 0)`}}><header className={cn("flex h-9 shrink-0 items-center gap-2 border-b border-border px-3",editable&&"cursor-grab select-none active:cursor-grabbing")} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}><span className="text-primary">{spec.icon}</span><h2 className="text-[10px] font-bold uppercase tracking-[0.14em]">{spec.title}</h2>{editable&&<Grip className="ml-auto size-3 text-muted-foreground"/>}</header><div className="min-h-0 flex-1 p-3">{spec.content}</div></article>;
 }
@@ -190,6 +195,7 @@ export function Dashboard() {
     {id:"spotify",title:"Spotify Now Playing",icon:<Play className="size-3.5"/>,width:282,height:372,x:576,y:0,content:<SpotifyWidget/>},
     {id:"openai",title:"OpenAI Costs",icon:<Bot className="size-3.5"/>,width:282,height:180,x:960,y:0,content:<OpenAICosts/>},
     {id:"claude",title:"Claude Usage",icon:<Gauge className="size-3.5"/>,width:282,height:180,x:960,y:192,content:<ClaudeUsage/>},
+    {id:"anthropic",title:"Anthropic Costs",icon:<Bot className="size-3.5"/>,width:282,height:180,x:1242,y:192,content:<AnthropicCosts/>},
     {id:"weather",title:"São Paulo",icon:<Sun className="size-3.5"/>,width:180,height:180,x:1344,y:0,content:<Weather/>},
     {id:"energy",title:"Team Energy Meter",icon:<Users className="size-3.5"/>,width:282,height:372,x:0,y:420,content:<EnergyMeter/>},
     {id:"pomodoro",title:"Pomodoro Timer",icon:<Timer className="size-3.5"/>,width:282,height:372,x:384,y:420,content:<Pomodoro/>},
