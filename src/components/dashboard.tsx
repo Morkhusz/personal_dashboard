@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
-  Bot, ChevronLeft, ChevronRight, CloudSun, Code2, Edit3, Gauge, GitPullRequest,
+  Bot, CheckCircle2, ChevronLeft, ChevronRight, CloudSun, Code2, Edit3, Gauge, GitPullRequest,
   Grip, Pause, Play, RefreshCcw, RotateCcw, SkipBack, SkipForward, Sparkles,
-  Star, Sun, Timer, Users, Wind,
+  Star, Sun, Timer, Users, Wind, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -132,7 +132,45 @@ function JokeWidget() {
     <div className="mt-auto flex items-center justify-between"><div className="flex">{[1,2,3,4,5].map(n=><Button variant="ghost" size="star" key={n} onClick={()=>setRating(n)} aria-label={`${n} stars`}><Star className={cn(n<=rating&&"fill-amber text-amber")}/></Button>)}</div><div className="flex gap-1"><Button variant="outline" size="iconSm" onClick={()=>move(-1)} aria-label="Previous"><ChevronLeft/></Button><Button variant="outline" size="iconSm" onClick={()=>move(1)} aria-label="Next"><ChevronRight/></Button></div></div></div>;
 }
 
-function Leaderboard() { return <div>{[["🥇","LC","Lia Costa",18],["🥈","MR","Mauro Reis",14],["🥉","AV","Ana Vaz",11],["4","TS","Theo Silva",9]].map(([rank,initials,name,count])=><div className="grid grid-cols-[20px_24px_1fr_auto] items-center gap-2 border-b border-border/70 py-1.5 last:border-0" key={String(name)}><span className="text-[11px] text-center">{rank}</span><span className="grid size-6 place-items-center rounded-full bg-primary/15 text-[8px] font-bold text-primary">{initials}</span><span className="text-[9px] font-medium">{name}</span><b className="text-[10px] text-primary">{count} PRs</b></div>)}</div> }
+function YesNoWidget() {
+  const [answer, setAnswer] = useState<"yes" | "no" | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const ask = async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const response = await fetch("https://yesno.wtf/api");
+      if (!response.ok) throw new Error("Failed to fetch answer");
+      const data = await response.json() as { answer?: string };
+      if (data.answer !== "yes" && data.answer !== "no") throw new Error("Invalid answer");
+      setAnswer(data.answer);
+    } catch {
+      setError(true);
+      setAnswer(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void ask(); }, []);
+
+  return <div className="flex h-full items-center justify-between gap-4">
+    <div className="flex min-w-0 items-center gap-3">
+      <div className={cn("grid size-14 shrink-0 place-items-center rounded-full", answer === "yes" ? "bg-green/15 text-green" : answer === "no" ? "bg-red/15 text-red" : "bg-secondary text-muted-foreground")}>
+        {loading ? <RefreshCcw className="size-6 animate-spin"/> : answer === "yes" ? <CheckCircle2 className="size-7"/> : answer === "no" ? <XCircle className="size-7"/> : <Sparkles className="size-6"/>}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Resposta do universo</div>
+        <div className={cn("mt-1 text-2xl font-black uppercase", answer === "yes" ? "text-green" : answer === "no" ? "text-red" : "text-foreground")}>
+          {loading ? "Pensando…" : error ? "Tente outra vez" : answer === "yes" ? "Sim" : "Não"}
+        </div>
+      </div>
+    </div>
+    <Button variant="outline" size="icon" onClick={() => void ask()} disabled={loading} aria-label="Perguntar novamente"><RefreshCcw className={cn(loading && "animate-spin")}/></Button>
+  </div>;
+}
 
 function Weather() { return <div className="flex h-full flex-col"><div className="flex items-start justify-between"><CloudSun className="size-9 text-amber"/><div className="text-right"><div className="text-3xl font-bold">24°</div><div className="text-[8px] text-muted-foreground">Parcialmente nublado</div></div></div><div className="mt-3 grid grid-cols-3 gap-1 text-center text-[8px] text-muted-foreground"><span>sens. 25°</span><span>💧 68%</span><span><Wind className="inline size-3"/> 9 km/h</span></div><div className="mt-auto grid grid-cols-3 border-t border-border pt-2 text-center text-[8px]">{[["Seg","☀️","26°"],["Ter","🌦️","22°"],["Qua","☁️","23°"]].map(d=><div key={d[0]}><span className="text-muted-foreground">{d[0]}</span><div>{d[1]}</div><b>{d[2]}</b></div>)}</div></div> }
 
@@ -157,7 +195,7 @@ export function Dashboard() {
     {id:"pomodoro",title:"Pomodoro Timer",icon:<Timer className="size-3.5"/>,width:282,height:372,x:384,y:420,content:<Pomodoro/>},
     {id:"joke",title:"Joke of the Day",icon:<Sparkles className="size-3.5"/>,width:372,height:282,x:768,y:420,content:<JokeWidget/>},
     {id:"pipeline",title:"CI/CD Pipeline",icon:<Code2 className="size-3.5"/>,width:372,height:180,x:1152,y:420,content:<Pipeline/>},
-    {id:"leaderboard",title:"PR Leaderboard",icon:<GitPullRequest className="size-3.5"/>,width:282,height:180,x:1242,y:612,content:<Leaderboard/>},
+    {id:"yesno",title:"Sim ou Não",icon:<Sparkles className="size-3.5"/>,width:282,height:180,x:1242,y:612,content:<YesNoWidget/>},
   ],[]);
   const defaults=useMemo(()=>Object.fromEntries(specs.map(s=>[s.id,{x:s.x,y:s.y}])),[specs]); const [positions,setPositions]=useState<Record<string,Position>>(defaults);
   useEffect(()=>{const saved=localStorage.getItem(STORAGE_KEY);if(saved){try{setPositions({...defaults,...JSON.parse(saved)})}catch{localStorage.removeItem(STORAGE_KEY)}}},[defaults]);
