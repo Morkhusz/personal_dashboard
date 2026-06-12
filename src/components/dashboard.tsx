@@ -156,7 +156,7 @@ export function Dashboard() {
     {id:"energy",title:"Team Energy Meter",icon:<Users className="size-3.5"/>,width:282,height:372,x:0,y:420,content:<EnergyMeter/>},
     {id:"pomodoro",title:"Pomodoro Timer",icon:<Timer className="size-3.5"/>,width:282,height:372,x:384,y:420,content:<Pomodoro/>},
     {id:"joke",title:"Joke of the Day",icon:<Sparkles className="size-3.5"/>,width:372,height:282,x:768,y:420,content:<JokeWidget/>},
-    {id:"pipeline",title:"CI/CD Pipeline",icon:<Code2 className="size-3.5"/>,width:372,height:180,x:1152,y:228,content:<Pipeline/>},
+    {id:"pipeline",title:"CI/CD Pipeline",icon:<Code2 className="size-3.5"/>,width:372,height:180,x:1152,y:420,content:<Pipeline/>},
     {id:"leaderboard",title:"PR Leaderboard",icon:<GitPullRequest className="size-3.5"/>,width:282,height:180,x:1242,y:612,content:<Leaderboard/>},
   ],[]);
   const defaults=useMemo(()=>Object.fromEntries(specs.map(s=>[s.id,{x:s.x,y:s.y}])),[specs]); const [positions,setPositions]=useState<Record<string,Position>>(defaults);
