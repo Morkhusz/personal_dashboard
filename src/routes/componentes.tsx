@@ -67,9 +67,13 @@ function ComponentsPage() {
     window.dispatchEvent(new Event(WIDGET_SIZES_EVENT));
     setSavedId(selected.id);
   };
+  const resizeSelected = (next: { width: number; height: number }) => {
+    setSizes((current) => ({ ...current, [selected.id]: next }));
+    setSavedId(null);
+  };
 
   if (dashboardPreview) {
-    return <Dashboard previewWidget={dashboardPreview} onExitPreview={() => setDashboardPreview(null)} />;
+    return <Dashboard previewWidget={dashboardPreview} onPreviewResize={(next) => { setDashboardPreview((current) => current ? { ...current, ...next } : current); resizeSelected(next); }} onExitPreview={() => setDashboardPreview(null)} />;
   }
 
   const previewSpec = { ...selected, width: size.width, height: size.height };
@@ -106,7 +110,7 @@ function ComponentsPage() {
 
           <div className="canvas relative min-h-[620px] overflow-auto p-12">
             <div className="relative mx-auto" style={{ width: size.width, height: size.height }}>
-              <Widget spec={previewSpec} position={{ x: 0, y: 0 }} editable={false} canvasWidth={size.width} canvasHeight={size.height} onDragEnd={() => undefined} />
+              <Widget spec={previewSpec} position={{ x: 0, y: 0 }} editable={false} resizable canvasWidth={900} canvasHeight={720} onDragEnd={() => undefined} onResize={resizeSelected} />
             </div>
             <p className="mt-6 text-center text-[10px] text-muted-foreground">O preview muda imediatamente. Clique em “Salvar alteração” para aplicar o tamanho em todos os dashboards.</p>
           </div>
