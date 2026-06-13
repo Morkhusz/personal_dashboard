@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ChevronLeft, Eye, Gauge, SlidersHorizontal } from "lucide-react";
-import { Dashboard, Widget, useWidgetSpecs, type WidgetPreview } from "@/components/dashboard";
+import { useEffect, useState } from "react";
+import { Check, ChevronLeft, Eye, Gauge, Save, SlidersHorizontal } from "lucide-react";
+import { Dashboard, Widget, useWidgetSpecs, WIDGET_SIZES_EVENT, WIDGET_SIZES_STORAGE_KEY, type WidgetPreview } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/componentes")({
@@ -27,14 +27,32 @@ function ComponentsPage() {
     Object.fromEntries(specs.map((spec) => [spec.id, { width: spec.width, height: spec.height }])),
   );
   const [dashboardPreview, setDashboardPreview] = useState<WidgetPreview | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(WIDGET_SIZES_STORAGE_KEY) ?? "{}") as Record<string, { width?: number; height?: number }>;
+      setSizes(Object.fromEntries(specs.map((spec) => [spec.id, {
+        width: saved[spec.id]?.width ?? spec.width,
+        height: saved[spec.id]?.height ?? spec.height,
+      }])));
+    } catch { localStorage.removeItem(WIDGET_SIZES_STORAGE_KEY); }
+  }, [specs]);
 
   if (!selected) return null;
   const size = sizes[selected.id] ?? { width: selected.width, height: selected.height };
-  const updateSize = (key: "width" | "height", value: string) => {
+  const updateSize = (key: "width" | "height", value: number) => {
     const limit = key === "width" ? [180, 900] : [140, 720];
-    const parsed = Number(value);
-    const next = Number.isFinite(parsed) ? Math.max(limit[0], Math.min(limit[1], parsed)) : limit[0];
+    const next = Math.max(limit[0], Math.min(limit[1], value));
     setSizes((current) => ({ ...current, [selected.id]: { ...size, [key]: next } }));
+    setSavedId(null);
+  };
+  const saveSize = () => {
+    let stored: Record<string, { width: number; height: number }> = {};
+    try { stored = JSON.parse(localStorage.getItem(WIDGET_SIZES_STORAGE_KEY) ?? "{}"); } catch { stored = {}; }
+    localStorage.setItem(WIDGET_SIZES_STORAGE_KEY, JSON.stringify({ ...stored, [selected.id]: size }));
+    window.dispatchEvent(new Event(WIDGET_SIZES_EVENT));
+    setSavedId(selected.id);
   };
 
   if (dashboardPreview) {
@@ -65,10 +83,11 @@ function ComponentsPage() {
           <div className="flex items-center gap-3 border-b border-border bg-card/25 px-6 py-4">
             <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">{selected.icon}</span>
             <div><h2 className="text-base font-bold">{selected.title}</h2><p className="text-[10px] text-muted-foreground">{size.width} × {size.height} px</p></div>
-            <div className="ml-auto flex items-end gap-3 rounded-xl border border-border bg-card p-3">
-              <SlidersHorizontal className="mb-2 size-4 text-muted-foreground" />
-              <div className="grid gap-1"><Label htmlFor="component-width" className="text-[9px] text-muted-foreground">Largura</Label><Input id="component-width" className="w-24" type="number" min={180} max={900} value={size.width} onChange={(event) => updateSize("width", event.target.value)} /></div>
-              <div className="grid gap-1"><Label htmlFor="component-height" className="text-[9px] text-muted-foreground">Altura</Label><Input id="component-height" className="w-24" type="number" min={140} max={720} value={size.height} onChange={(event) => updateSize("height", event.target.value)} /></div>
+            <div className="ml-auto flex items-center gap-4 rounded-xl border border-border bg-card p-3">
+              <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
+              <div className="grid w-48 gap-2"><div className="flex justify-between"><Label htmlFor="component-width" className="text-[9px] text-muted-foreground">Largura</Label><span className="text-[9px] font-semibold">{size.width}px</span></div><Slider id="component-width" min={180} max={900} step={6} value={[size.width]} onValueChange={([value]) => updateSize("width", value ?? size.width)} aria-label="Largura do componente" /></div>
+              <div className="grid w-48 gap-2"><div className="flex justify-between"><Label htmlFor="component-height" className="text-[9px] text-muted-foreground">Altura</Label><span className="text-[9px] font-semibold">{size.height}px</span></div><Slider id="component-height" min={140} max={720} step={4} value={[size.height]} onValueChange={([value]) => updateSize("height", value ?? size.height)} aria-label="Altura do componente" /></div>
+              <Button size="sm" variant={savedId === selected.id ? "secondary" : "default"} onClick={saveSize}>{savedId === selected.id ? <Check /> : <Save />}{savedId === selected.id ? "Salvo" : "Salvar alteração"}</Button>
             </div>
           </div>
 
@@ -76,7 +95,7 @@ function ComponentsPage() {
             <div className="relative mx-auto" style={{ width: size.width, height: size.height }}>
               <Widget spec={previewSpec} position={{ x: 0, y: 0 }} editable={false} canvasWidth={size.width} canvasHeight={size.height} onDragEnd={() => undefined} />
             </div>
-            <p className="mt-6 text-center text-[10px] text-muted-foreground">As alterações desta tela são temporárias e não modificam o dashboard original.</p>
+            <p className="mt-6 text-center text-[10px] text-muted-foreground">O preview muda imediatamente. Clique em “Salvar alteração” para aplicar o tamanho em todos os dashboards.</p>
           </div>
         </section>
       </div>
