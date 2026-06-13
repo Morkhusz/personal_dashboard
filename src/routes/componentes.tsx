@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Check, ChevronLeft, Eye, Gauge, Save, SlidersHorizontal } from "lucide-react";
 import { Dashboard, Widget, useWidgetSpecs, WIDGET_SIZES_EVENT, WIDGET_SIZES_STORAGE_KEY, type WidgetPreview } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,8 @@ function ComponentsPage() {
   );
   const [dashboardPreview, setDashboardPreview] = useState<WidgetPreview | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [editingSize, setEditingSize] = useState<"width" | "height" | null>(null);
+  const [exactValue, setExactValue] = useState("");
 
   useEffect(() => {
     try {
@@ -46,6 +49,16 @@ function ComponentsPage() {
     const next = Math.max(limit[0], Math.min(limit[1], value));
     setSizes((current) => ({ ...current, [selected.id]: { ...size, [key]: next } }));
     setSavedId(null);
+  };
+  const startExactEdit = (key: "width" | "height") => {
+    setEditingSize(key);
+    setExactValue(String(size[key]));
+  };
+  const finishExactEdit = () => {
+    if (!editingSize) return;
+    const parsed = Number(exactValue);
+    if (Number.isFinite(parsed)) updateSize(editingSize, Math.round(parsed));
+    setEditingSize(null);
   };
   const saveSize = () => {
     let stored: Record<string, { width: number; height: number }> = {};
@@ -85,8 +98,8 @@ function ComponentsPage() {
             <div><h2 className="text-base font-bold">{selected.title}</h2><p className="text-[10px] text-muted-foreground">{size.width} × {size.height} px</p></div>
             <div className="ml-auto flex items-center gap-4 rounded-xl border border-border bg-card p-3">
               <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
-              <div className="grid w-48 gap-2"><div className="flex justify-between"><Label htmlFor="component-width" className="text-[9px] text-muted-foreground">Largura</Label><span className="text-[9px] font-semibold">{size.width}px</span></div><Slider id="component-width" min={180} max={900} step={6} value={[size.width]} onValueChange={([value]) => updateSize("width", value ?? size.width)} aria-label="Largura do componente" /></div>
-              <div className="grid w-48 gap-2"><div className="flex justify-between"><Label htmlFor="component-height" className="text-[9px] text-muted-foreground">Altura</Label><span className="text-[9px] font-semibold">{size.height}px</span></div><Slider id="component-height" min={140} max={720} step={4} value={[size.height]} onValueChange={([value]) => updateSize("height", value ?? size.height)} aria-label="Altura do componente" /></div>
+              <div className="grid w-48 gap-2"><div className="flex h-5 items-center justify-between"><Label htmlFor="component-width" className="text-[9px] text-muted-foreground">Largura</Label>{editingSize === "width" ? <Input aria-label="Valor exato da largura" autoFocus className="h-5 w-16 px-1.5 text-right text-[9px]" type="number" min={180} max={900} value={exactValue} onChange={(event) => setExactValue(event.target.value)} onFocus={(event) => event.currentTarget.select()} onBlur={finishExactEdit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditingSize(null); }} /> : <span className="cursor-text rounded px-1 text-[9px] font-semibold hover:bg-secondary" title="Clique duas vezes para digitar um valor exato" onDoubleClick={() => startExactEdit("width")}>{size.width}px</span>}</div><Slider id="component-width" min={180} max={900} step={6} value={[size.width]} onValueChange={([value]) => updateSize("width", value ?? size.width)} aria-label="Largura do componente" /></div>
+              <div className="grid w-48 gap-2"><div className="flex h-5 items-center justify-between"><Label htmlFor="component-height" className="text-[9px] text-muted-foreground">Altura</Label>{editingSize === "height" ? <Input aria-label="Valor exato da altura" autoFocus className="h-5 w-16 px-1.5 text-right text-[9px]" type="number" min={140} max={720} value={exactValue} onChange={(event) => setExactValue(event.target.value)} onFocus={(event) => event.currentTarget.select()} onBlur={finishExactEdit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditingSize(null); }} /> : <span className="cursor-text rounded px-1 text-[9px] font-semibold hover:bg-secondary" title="Clique duas vezes para digitar um valor exato" onDoubleClick={() => startExactEdit("height")}>{size.height}px</span>}</div><Slider id="component-height" min={140} max={720} step={4} value={[size.height]} onValueChange={([value]) => updateSize("height", value ?? size.height)} aria-label="Altura do componente" /></div>
               <Button size="sm" variant={savedId === selected.id ? "secondary" : "default"} onClick={saveSize}>{savedId === selected.id ? <Check /> : <Save />}{savedId === selected.id ? "Salvo" : "Salvar alteração"}</Button>
             </div>
           </div>
