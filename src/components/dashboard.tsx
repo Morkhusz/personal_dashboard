@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
   Bot, CheckCircle2, ChevronLeft, ChevronRight, CloudSun, Code2, Edit3, Gauge, GitPullRequest,
-  Grip, LayoutDashboard, Minus, PanelRight, Pause, Play, Plus, RefreshCcw, RotateCcw, SkipBack, SkipForward, Sparkles,
+  Grip, LayoutDashboard, Minus, PanelRight, Pause, Play, Plus, RefreshCcw, RotateCcw, Settings, SkipBack, SkipForward, Sparkles,
   Star, Sun, Timer, Trash2, Users, Wind, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +23,7 @@ const toneClasses = {
 
 type Position = { x: number; y: number };
 type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
-type DashboardTab = { id: string; name: string; positions: Record<string, Position>; hiddenWidgets: string[] };
+type DashboardTab = { id: string; name: string; width: number; height: number; positions: Record<string, Position>; hiddenWidgets: string[] };
 
 const issues = [
   ["polaris-api", "#428", "Corrigir cache do endpoint de métricas", "LC"],
@@ -182,11 +185,11 @@ function YesNoWidget() {
 
 function Weather() { return <div className="flex h-full flex-col"><div className="flex items-start justify-between"><CloudSun className="size-9 text-amber"/><div className="text-right"><div className="text-3xl font-bold">24°</div><div className="text-[8px] text-muted-foreground">Parcialmente nublado</div></div></div><div className="mt-3 grid grid-cols-3 gap-1 text-center text-[8px] text-muted-foreground"><span>sens. 25°</span><span>💧 68%</span><span><Wind className="inline size-3"/> 9 km/h</span></div><div className="mt-auto grid grid-cols-3 border-t border-border pt-2 text-center text-[8px]">{[["Seg","☀️","26°"],["Ter","🌦️","22°"],["Qua","☁️","23°"]].map(d=><div key={d[0]}><span className="text-muted-foreground">{d[0]}</span><div>{d[1]}</div><b>{d[2]}</b></div>)}</div></div> }
 
-function Widget({ spec, position, editable, onDragEnd }: { spec: WidgetSpec; position: Position; editable: boolean; onDragEnd: (id: string, p: Position) => void }) {
+function Widget({ spec, position, editable, canvasWidth, canvasHeight, onDragEnd }: { spec: WidgetSpec; position: Position; editable: boolean; canvasWidth: number; canvasHeight: number; onDragEnd: (id: string, p: Position) => void }) {
   const drag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null); const [temp,setTemp]=useState<Position|null>(null);
   const onPointerDown=(e:ReactPointerEvent)=>{if(!editable)return; e.currentTarget.setPointerCapture(e.pointerId); drag.current={sx:e.clientX,sy:e.clientY,ox:position.x,oy:position.y};};
-  const onPointerMove=(e:ReactPointerEvent)=>{if(!drag.current)return; setTemp({x:Math.max(0,Math.min(CANVAS_WIDTH-spec.width,drag.current.ox+e.clientX-drag.current.sx)),y:Math.max(0,Math.min(CANVAS_HEIGHT-spec.height,drag.current.oy+e.clientY-drag.current.sy))})};
-  const onPointerUp=()=>{if(!drag.current)return; const p=temp??position; const placed={x:Math.max(0,Math.min(CANVAS_WIDTH-spec.width,Math.round(p.x))),y:Math.max(0,Math.min(CANVAS_HEIGHT-spec.height,Math.round(p.y)))};drag.current=null;setTemp(null);onDragEnd(spec.id,placed)};
+  const onPointerMove=(e:ReactPointerEvent)=>{if(!drag.current)return; setTemp({x:Math.max(0,Math.min(canvasWidth-spec.width,drag.current.ox+e.clientX-drag.current.sx)),y:Math.max(0,Math.min(canvasHeight-spec.height,drag.current.oy+e.clientY-drag.current.sy))})};
+  const onPointerUp=()=>{if(!drag.current)return; const p=temp??position; const placed={x:Math.max(0,Math.min(canvasWidth-spec.width,Math.round(p.x))),y:Math.max(0,Math.min(canvasHeight-spec.height,Math.round(p.y)))};drag.current=null;setTemp(null);onDragEnd(spec.id,placed)};
   const p=temp??position;
   return <article className={cn("widget absolute flex flex-col",editable&&"widget-editing")} style={{width:spec.width,height:spec.height,transform:`translate3d(${p.x}px, ${p.y}px, 0)`}}><header className={cn("flex h-9 shrink-0 items-center gap-2 border-b border-border px-3",editable&&"cursor-grab select-none active:cursor-grabbing")} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}><span className="text-primary">{spec.icon}</span><h2 className="text-[10px] font-bold uppercase tracking-[0.14em]">{spec.title}</h2>{editable&&<Grip className="ml-auto size-3 text-muted-foreground"/>}</header><div className="min-h-0 flex-1 p-3">{spec.content}</div></article>;
 }
