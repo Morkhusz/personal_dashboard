@@ -17,6 +17,8 @@ const CANVAS_HEIGHT = 792;
 const LEGACY_STORAGE_KEY = "accusense-layout-v1";
 const TABS_STORAGE_KEY = "accusense-dashboard-tabs-v1";
 const HTML_TITLE_STORAGE_KEY = "accusense-html-title-v1";
+export const WIDGET_SIZES_STORAGE_KEY = "accusense-widget-sizes-v1";
+export const WIDGET_SIZES_EVENT = "accusense-widget-sizes-updated";
 const toneClasses = {
   blue: { bg: "bg-blue", stroke: "stroke-blue" }, green: { bg: "bg-green", stroke: "stroke-green" },
   amber: { bg: "bg-amber", stroke: "stroke-amber" }, red: { bg: "bg-red", stroke: "stroke-red" },
@@ -198,7 +200,7 @@ export function Widget({ spec, position, editable, canvasWidth, canvasHeight, pr
 }
 
 export function useWidgetSpecs() {
-  return useMemo<WidgetSpec[]>(()=>[
+  const defaults = useMemo<WidgetSpec[]>(()=>[
     {id:"kanban",title:"GitHub Kanban",icon:<GitPullRequest className="size-3.5"/>,width:540,height:372,x:0,y:0,content:<GitHubKanban/>},
     {id:"spotify",title:"Spotify Now Playing",icon:<Play className="size-3.5"/>,width:282,height:372,x:576,y:0,content:<SpotifyWidget/>},
     {id:"openai",title:"OpenAI Costs",icon:<Bot className="size-3.5"/>,width:282,height:180,x:960,y:0,content:<OpenAICosts/>},
@@ -211,6 +213,23 @@ export function useWidgetSpecs() {
     {id:"pipeline",title:"CI/CD Pipeline",icon:<Code2 className="size-3.5"/>,width:372,height:180,x:1152,y:420,content:<Pipeline/>},
     {id:"yesno",title:"Sim ou Não",icon:<Sparkles className="size-3.5"/>,width:282,height:180,x:1242,y:612,content:<YesNoWidget/>},
   ],[]);
+  const [specs,setSpecs]=useState(defaults);
+  useEffect(()=>{
+    const loadSizes=()=>{
+      try {
+        const saved=JSON.parse(localStorage.getItem(WIDGET_SIZES_STORAGE_KEY)??"{}") as Record<string,{width?:number;height?:number}>;
+        setSpecs(defaults.map(spec=>{
+          const size=saved[spec.id];
+          return size?{...spec,width:Math.max(180,Math.min(900,Number(size.width)||spec.width)),height:Math.max(140,Math.min(720,Number(size.height)||spec.height))}:spec;
+        }));
+      } catch { localStorage.removeItem(WIDGET_SIZES_STORAGE_KEY);setSpecs(defaults); }
+    };
+    loadSizes();
+    window.addEventListener("storage",loadSizes);
+    window.addEventListener(WIDGET_SIZES_EVENT,loadSizes);
+    return()=>{window.removeEventListener("storage",loadSizes);window.removeEventListener(WIDGET_SIZES_EVENT,loadSizes)};
+  },[defaults]);
+  return specs;
 }
 
 export function Dashboard({ previewWidget, onExitPreview }: { previewWidget?: WidgetPreview; onExitPreview?: () => void } = {}) {
