@@ -5,6 +5,7 @@ import {
   Star, Sun, Timer, Trash2, Users, Wind, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,8 @@ const toneClasses = {
 } as const;
 
 type Position = { x: number; y: number };
-type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
+export type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
+export type WidgetPreview = { id: string; width: number; height: number };
 type DashboardTab = { id: string; name: string; width: number; height: number; positions: Record<string, Position>; hiddenWidgets: string[] };
 
 const issues = [
@@ -186,20 +188,17 @@ function YesNoWidget() {
 
 function Weather() { return <div className="flex h-full flex-col"><div className="flex items-start justify-between"><CloudSun className="size-9 text-amber"/><div className="text-right"><div className="text-3xl font-bold">24°</div><div className="text-[8px] text-muted-foreground">Parcialmente nublado</div></div></div><div className="mt-3 grid grid-cols-3 gap-1 text-center text-[8px] text-muted-foreground"><span>sens. 25°</span><span>💧 68%</span><span><Wind className="inline size-3"/> 9 km/h</span></div><div className="mt-auto grid grid-cols-3 border-t border-border pt-2 text-center text-[8px]">{[["Seg","☀️","26°"],["Ter","🌦️","22°"],["Qua","☁️","23°"]].map(d=><div key={d[0]}><span className="text-muted-foreground">{d[0]}</span><div>{d[1]}</div><b>{d[2]}</b></div>)}</div></div> }
 
-function Widget({ spec, position, editable, canvasWidth, canvasHeight, onDragEnd }: { spec: WidgetSpec; position: Position; editable: boolean; canvasWidth: number; canvasHeight: number; onDragEnd: (id: string, p: Position) => void }) {
+export function Widget({ spec, position, editable, canvasWidth, canvasHeight, preview = false, onDragEnd }: { spec: WidgetSpec; position: Position; editable: boolean; canvasWidth: number; canvasHeight: number; preview?: boolean; onDragEnd: (id: string, p: Position) => void }) {
   const drag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null); const [temp,setTemp]=useState<Position|null>(null);
   const onPointerDown=(e:ReactPointerEvent)=>{if(!editable)return; e.currentTarget.setPointerCapture(e.pointerId); drag.current={sx:e.clientX,sy:e.clientY,ox:position.x,oy:position.y};};
   const onPointerMove=(e:ReactPointerEvent)=>{if(!drag.current)return; setTemp({x:Math.max(0,Math.min(canvasWidth-spec.width,drag.current.ox+e.clientX-drag.current.sx)),y:Math.max(0,Math.min(canvasHeight-spec.height,drag.current.oy+e.clientY-drag.current.sy))})};
   const onPointerUp=()=>{if(!drag.current)return; const p=temp??position; const placed={x:Math.max(0,Math.min(canvasWidth-spec.width,Math.round(p.x))),y:Math.max(0,Math.min(canvasHeight-spec.height,Math.round(p.y)))};drag.current=null;setTemp(null);onDragEnd(spec.id,placed)};
   const p=temp??position;
-  return <article className={cn("widget absolute flex flex-col",editable&&"widget-editing")} style={{width:spec.width,height:spec.height,transform:`translate3d(${p.x}px, ${p.y}px, 0)`}}><header className={cn("flex h-9 shrink-0 items-center gap-2 border-b border-border px-3",editable&&"cursor-grab select-none active:cursor-grabbing")} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}><span className="text-primary">{spec.icon}</span><h2 className="text-[10px] font-bold uppercase tracking-[0.14em]">{spec.title}</h2>{editable&&<Grip className="ml-auto size-3 text-muted-foreground"/>}</header><div className="min-h-0 flex-1 p-3">{spec.content}</div></article>;
+  return <article className={cn("widget absolute flex flex-col",editable&&"widget-editing",preview&&"z-30 ring-2 ring-primary/60")} style={{width:spec.width,height:spec.height,transform:`translate3d(${p.x}px, ${p.y}px, 0)`}}><header className={cn("flex h-9 shrink-0 items-center gap-2 border-b border-border px-3",editable&&"cursor-grab select-none active:cursor-grabbing")} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}><span className="text-primary">{spec.icon}</span><h2 className="text-[10px] font-bold uppercase tracking-[0.14em]">{spec.title}</h2>{preview&&<span className="ml-auto rounded-full bg-primary/15 px-2 py-0.5 text-[7px] font-bold uppercase tracking-wider text-primary">Preview</span>}{editable&&<Grip className={cn("size-3 text-muted-foreground",!preview&&"ml-auto")}/>}</header><div className="min-h-0 flex-1 p-3">{spec.content}</div></article>;
 }
 
-export function Dashboard() {
-  const [clock,setClock]=useState(""),[editable,setEditable]=useState(false),[hydrated,setHydrated]=useState(false);
-  const [configOpen,setConfigOpen]=useState(false),[htmlTitle,setHtmlTitle]=useState("Accusense Dev — Engineering Command Center");
-  const [configDraft,setConfigDraft]=useState({name:"Accusense Dev",htmlTitle:"Accusense Dev — Engineering Command Center",width:String(CANVAS_WIDTH),height:String(CANVAS_HEIGHT)});
-  const specs: WidgetSpec[] = useMemo(()=>[
+export function useWidgetSpecs() {
+  return useMemo<WidgetSpec[]>(()=>[
     {id:"kanban",title:"GitHub Kanban",icon:<GitPullRequest className="size-3.5"/>,width:540,height:372,x:0,y:0,content:<GitHubKanban/>},
     {id:"spotify",title:"Spotify Now Playing",icon:<Play className="size-3.5"/>,width:282,height:372,x:576,y:0,content:<SpotifyWidget/>},
     {id:"openai",title:"OpenAI Costs",icon:<Bot className="size-3.5"/>,width:282,height:180,x:960,y:0,content:<OpenAICosts/>},
@@ -212,6 +211,15 @@ export function Dashboard() {
     {id:"pipeline",title:"CI/CD Pipeline",icon:<Code2 className="size-3.5"/>,width:372,height:180,x:1152,y:420,content:<Pipeline/>},
     {id:"yesno",title:"Sim ou Não",icon:<Sparkles className="size-3.5"/>,width:282,height:180,x:1242,y:612,content:<YesNoWidget/>},
   ],[]);
+}
+
+export function Dashboard({ previewWidget, onExitPreview }: { previewWidget?: WidgetPreview; onExitPreview?: () => void } = {}) {
+  const [clock,setClock]=useState(""),[editable,setEditable]=useState(false),[hydrated,setHydrated]=useState(false);
+  const [configOpen,setConfigOpen]=useState(false),[htmlTitle,setHtmlTitle]=useState("Accusense Dev — Engineering Command Center");
+  const [configDraft,setConfigDraft]=useState({name:"Accusense Dev",htmlTitle:"Accusense Dev — Engineering Command Center",width:String(CANVAS_WIDTH),height:String(CANVAS_HEIGHT)});
+  const specs = useWidgetSpecs();
+  const [previewPosition,setPreviewPosition]=useState<Position>({x:80,y:80});
+  const previewSpec=previewWidget?specs.find(spec=>spec.id===previewWidget.id):undefined;
   const defaults=useMemo(()=>Object.fromEntries(specs.map(s=>[s.id,{x:s.x,y:s.y}])),[specs]);
   const [tabs,setTabs]=useState<DashboardTab[]>([{id:"main",name:"Accusense Dev",width:CANVAS_WIDTH,height:CANVAS_HEIGHT,positions:defaults,hiddenWidgets:[]}]);
   const [activeTabId,setActiveTabId]=useState("main");
