@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { readSpotifyConfig, spotifyFetch, SPOTIFY_WIDGET_EVENT } from "@/lib/spotify";
 
 const CANVAS_WIDTH = 1524;
 const CANVAS_HEIGHT = 792;
@@ -93,14 +94,17 @@ function GitHubKanban() {
 }
 
 function SpotifyWidget() {
-  const [playing, setPlaying] = useState(true);
-  const [progress, setProgress] = useState(38);
-  useEffect(() => { if (!playing) return; const id = window.setInterval(() => setProgress(v => (v >= 100 ? 0 : v + .25)), 500); return () => clearInterval(id); }, [playing]);
-  const queue = [["Midnight City", "M83", "4:03"], ["Borderline", "Tame Impala", "3:57"], ["Instant Crush", "Daft Punk", "5:37"], ["Electric Feel", "MGMT", "3:50"], ["Dreams", "Fleetwood Mac", "4:17"]];
-  return <div className="flex h-full flex-col"><div className="flex gap-3"><div className="grid size-20 shrink-0 place-items-center rounded-xl bg-spotify/15 text-4xl">🌌</div><div className="min-w-0 pt-2"><div className="truncate text-sm font-bold">Nightcall</div><div className="text-[10px] text-muted-foreground">Kavinsky</div><div className="mt-3 text-[9px] font-semibold text-spotify">PLAYING NOW</div></div></div>
-    <div className="mt-3"><MetricBar value={progress} tone="green"/><div className="mt-1 flex justify-between text-[8px] text-muted-foreground"><span>1:42</span><span>4:20</span></div></div>
-    <div className="flex items-center justify-center gap-2"><Button variant="ghost" size="icon" aria-label="Previous"><SkipBack/></Button><Button variant="spotify" size="icon" onClick={() => setPlaying(v => !v)} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause/> : <Play/>}</Button><Button variant="ghost" size="icon" aria-label="Next"><SkipForward/></Button></div>
-    <div className="mt-2 min-h-0 flex-1 border-t border-border pt-2"><div className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Próximas</div>{queue.map((q, i) => <div className="grid grid-cols-[16px_1fr_auto] items-center gap-2 py-1 text-[9px]" key={q[0]}><span className="text-muted-foreground">{i + 1}</span><span className="truncate"><b>{q[0]}</b> <span className="text-muted-foreground">· {q[1]}</span></span><span className="text-muted-foreground">{q[2]}</span></div>)}</div>
+  type Track = { name:string;artists:{name:string}[];duration_ms:number;album?:{images?:{url:string}[]} };
+  const [player,setPlayer]=useState<{is_playing:boolean;progress_ms:number;item:Track|null}|null>(null),[queue,setQueue]=useState<Track[]>([]),[error,setError]=useState("");
+  const load=async()=>{if(!readSpotifyConfig().accessToken&&!readSpotifyConfig().refreshToken){setPlayer(null);return}try{const [current,queued]=await Promise.all([spotifyFetch("/me/player/currently-playing"),spotifyFetch("/me/player/queue")]);if(current.status===204){setPlayer(null)}else setPlayer(await current.json() as {is_playing:boolean;progress_ms:number;item:Track|null});setQueue((await queued.json() as {queue:Track[]}).queue.slice(0,5));setError("")}catch(e){setError(e instanceof Error?e.message:"Erro no Spotify")}};
+  useEffect(()=>{void load();const id=window.setInterval(()=>void load(),15000);window.addEventListener(SPOTIFY_WIDGET_EVENT,load);return()=>{clearInterval(id);window.removeEventListener(SPOTIFY_WIDGET_EVENT,load)}},[]);
+  const control=async(action:"previous"|"next"|"play"|"pause")=>{try{await spotifyFetch(`/me/player/${action}`,{method:action==="play"||action==="pause"?"PUT":"POST"});await load()}catch(e){setError(e instanceof Error?e.message:"Erro no Spotify")}};
+  const track=player?.item, progress=track?Math.min(100,(player.progress_ms/track.duration_ms)*100):0, format=(ms:number)=>`${Math.floor(ms/60000)}:${String(Math.floor(ms/1000)%60).padStart(2,"0")}`;
+  if(!readSpotifyConfig().clientId)return <div className="grid h-full place-items-center text-center"><div><div className="text-3xl">♫</div><b className="mt-2 block text-sm">Spotify não configurado</b><span className="text-[9px] text-muted-foreground">Configure este widget em Componentes.</span></div></div>;
+  return <div className="flex h-full flex-col"><div className="flex gap-3"><div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-spotify/15 text-4xl">{track?.album?.images?.[0]?.url?<img src={track.album.images[0].url} alt={`Capa de ${track.name}`} className="size-full object-cover"/>:"♫"}</div><div className="min-w-0 pt-2"><div className="truncate text-sm font-bold">{track?.name??"Nada tocando"}</div><div className="truncate text-[10px] text-muted-foreground">{track?.artists.map(a=>a.name).join(", ")??"Abra o Spotify em um dispositivo"}</div><div className="mt-3 text-[9px] font-semibold text-spotify">{player?.is_playing?"PLAYING NOW":"PAUSADO"}</div></div></div>
+    <div className="mt-3"><MetricBar value={progress} tone="green"/><div className="mt-1 flex justify-between text-[8px] text-muted-foreground"><span>{format(player?.progress_ms??0)}</span><span>{format(track?.duration_ms??0)}</span></div></div>
+    <div className="flex items-center justify-center gap-2"><Button variant="ghost" size="icon" onClick={()=>void control("previous")} aria-label="Anterior"><SkipBack/></Button><Button variant="spotify" size="icon" onClick={()=>void control(player?.is_playing?"pause":"play")} aria-label={player?.is_playing?"Pausar":"Tocar"}>{player?.is_playing?<Pause/>:<Play/>}</Button><Button variant="ghost" size="icon" onClick={()=>void control("next")} aria-label="Próxima"><SkipForward/></Button></div>
+    {error&&<div className="mb-1 rounded-md bg-red/10 px-2 py-1 text-[8px] text-red">{error}</div>}<div className="mt-2 min-h-0 flex-1 overflow-y-auto border-t border-border pt-2"><div className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Próximas</div>{queue.map((q,i)=><div className="grid grid-cols-[16px_1fr_auto] items-center gap-2 py-1 text-[9px]" key={`${q.name}-${i}`}><span className="text-muted-foreground">{i+1}</span><span className="truncate"><b>{q.name}</b> <span className="text-muted-foreground">· {q.artists.map(a=>a.name).join(", ")}</span></span><span className="text-muted-foreground">{format(q.duration_ms)}</span></div>)}</div>
   </div>;
 }
 
