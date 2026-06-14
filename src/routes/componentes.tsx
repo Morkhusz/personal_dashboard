@@ -97,10 +97,10 @@ function ComponentsPage() {
   const connectSpotify=async()=>{if(!saveSpotify())return;await beginSpotifyAuthorization(readSpotifyConfig())};
   const saveGitHub=()=>{
     const token=githubDraft.token.trim(),owner=githubDraft.owner.trim(),repositories=githubDraft.repositories.split(",").map(repo=>repo.trim()).filter(Boolean).join(", ");
-    if(!/^(gh[opusr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})$/.test(token)){setGithubMessage("Informe um Personal Access Token válido do GitHub.");return}
-    if(owner&&!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(owner)){setGithubMessage("Informe um usuário ou organização válido.");return}
-    if(repositories&&!owner&&repositories.split(",").some(repo=>!repo.trim().includes("/"))){setGithubMessage("Informe o proprietário ou use owner/repositório em cada item.");return}
-    const next={token,owner,repositories};saveGitHubConfig(next);setGitHubDraft(next);setGithubMessage("Configuração salva neste componente. O preview foi atualizado.");
+    if(!/^(gh[opusr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})$/.test(token)){setGitHubMessage("Informe um Personal Access Token válido do GitHub.");return}
+    if(owner&&!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(owner)){setGitHubMessage("Informe um usuário ou organização válido.");return}
+    if(repositories&&!owner&&repositories.split(",").some(repo=>!repo.trim().includes("/"))){setGitHubMessage("Informe o proprietário ou use owner/repositório em cada item.");return}
+    const next={token,owner,repositories};saveGitHubConfig(next);setGitHubDraft(next);setGitHubMessage("Configuração salva neste componente. O preview foi atualizado.");
   };
 
   if (dashboardPreview) {

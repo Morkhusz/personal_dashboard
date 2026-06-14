@@ -32,15 +32,6 @@ export type WidgetSpec = { id: string; title: string; icon: ReactNode; width: nu
 export type WidgetPreview = { id: string; width: number; height: number };
 type DashboardTab = { id: string; name: string; width: number; height: number; positions: Record<string, Position>; hiddenWidgets: string[] };
 
-const issues = [
-  ["polaris-api", "#428", "Corrigir cache do endpoint de métricas", "LC"],
-  ["market-insights-client", "#191", "Novo filtro por período no dashboard", "MR"],
-  ["tools-client", "#84", "Ajustar estados vazios da busca", "AV"],
-  ["scrape-engine", "#306", "Retry exponencial para jobs falhos", "TS"],
-  ["polaris-api", "#431", "Documentar webhooks de cobrança", "JP"],
-  ["market-insights-client", "#197", "Otimizar bundle de gráficos", "BI"],
-] as const;
-
 const pipelines = [
   ["polaris-api", "main", "2m atrás", "ok"],
   ["market-insights", "feat/charts", "6m atrás", "run"],
