@@ -77,13 +77,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Accusense Dev" },
-      { name: "description", content: "Engineering monitoring command center." },
+      { title: "Dashboard" },
+      { name: "description", content: "Engineering monitoring center." },
       { name: "author", content: "Accusense" },
-      { property: "og:title", content: "Accusense Dev" },
-      { property: "og:description", content: "Engineering monitoring command center." },
+      { property: "og:title", content: "Dashboard" },
+      { property: "og:description", content: "Engineering monitoring center." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Dashboard" },
+      { name: "twitter:description", content: "Engineering monitoring center." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b3c6abc-79a8-4210-9e69-e502496633c0/id-preview-0080ae0f--9da548a4-b4a1-4051-9ce1-0a370559e6d8.lovable.app-1781395880872.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b3c6abc-79a8-4210-9e69-e502496633c0/id-preview-0080ae0f--9da548a4-b4a1-4051-9ce1-0a370559e6d8.lovable.app-1781395880872.png" },
     ],
     links: [
       {
