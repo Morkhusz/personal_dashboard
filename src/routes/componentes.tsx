@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Eye, Gauge, Save, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronLeft, Eye, Gauge, Link2, Save, SlidersHorizontal } from "lucide-react";
 import { Dashboard, Widget, useWidgetSpecs, WIDGET_SIZES_EVENT, WIDGET_SIZES_STORAGE_KEY, type WidgetPreview } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { beginSpotifyAuthorization, completeSpotifyAuthorization, readSpotifyConfig, saveSpotifyConfig, type SpotifyConfig } from "@/lib/spotify.client";
 
 export const Route = createFileRoute("/componentes")({
   head: () => ({
@@ -31,6 +32,8 @@ function ComponentsPage() {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [editingSize, setEditingSize] = useState<"width" | "height" | null>(null);
   const [exactValue, setExactValue] = useState("");
+  const [spotifyDraft,setSpotifyDraft]=useState<SpotifyConfig>({clientId:"",redirectUri:""});
+  const [spotifyMessage,setSpotifyMessage]=useState("");
 
   useEffect(() => {
     try {
@@ -41,6 +44,13 @@ function ComponentsPage() {
       }])));
     } catch { localStorage.removeItem(WIDGET_SIZES_STORAGE_KEY); }
   }, [specs]);
+  useEffect(()=>{
+    const stored=readSpotifyConfig();
+    setSpotifyDraft({...stored,redirectUri:stored.redirectUri||`${window.location.origin}/componentes`});
+    const params=new URLSearchParams(window.location.search),code=params.get("code"),state=params.get("state"),oauthError=params.get("error");
+    if(oauthError){setSpotifyMessage("A autorização do Spotify foi cancelada.");window.history.replaceState({},"","/componentes");return}
+    if(code&&state){void completeSpotifyAuthorization(code,state).then(()=>{setSpotifyDraft(readSpotifyConfig());setSpotifyMessage("Conta Spotify conectada.");window.history.replaceState({},"","/componentes")}).catch(error=>setSpotifyMessage(error instanceof Error?error.message:"Falha ao conectar o Spotify"))}
+  },[]);
 
   if (!selected) return null;
   const size = sizes[selected.id] ?? { width: selected.width, height: selected.height };
@@ -71,6 +81,14 @@ function ComponentsPage() {
     setSizes((current) => ({ ...current, [selected.id]: next }));
     setSavedId(null);
   };
+  const saveSpotify=()=>{
+    const clientId=spotifyDraft.clientId.trim(),redirectUri=spotifyDraft.redirectUri.trim();
+    if(!/^[A-Za-z0-9]{16,64}$/.test(clientId)){setSpotifyMessage("Informe um Client ID válido do Spotify.");return}
+    try { const url=new URL(redirectUri);if(url.protocol!=="https:"&&url.hostname!=="localhost")throw new Error(); } catch { setSpotifyMessage("Informe uma URI HTTPS válida (ou localhost).");return }
+    saveSpotifyConfig({...readSpotifyConfig(),clientId,redirectUri});
+    setSpotifyDraft(readSpotifyConfig());setSpotifyMessage("Configuração salva neste componente.");
+  };
+  const connectSpotify=async()=>{saveSpotify();const config={...readSpotifyConfig(),clientId:spotifyDraft.clientId.trim(),redirectUri:spotifyDraft.redirectUri.trim()};if(config.clientId&&config.redirectUri)await beginSpotifyAuthorization(config)};
 
   if (dashboardPreview) {
     return <Dashboard previewWidget={dashboardPreview} onPreviewResize={(next) => { setDashboardPreview((current) => current ? { ...current, ...next } : current); resizeSelected(next); }} onExitPreview={() => setDashboardPreview(null)} />;
@@ -108,6 +126,7 @@ function ComponentsPage() {
             </div>
           </div>
 
+          {selected.id==="spotify"&&<div className="mx-6 mt-5 grid grid-cols-[1fr_1fr_auto] items-end gap-3 rounded-xl border border-spotify/25 bg-spotify/5 p-4"><div className="grid gap-2"><Label htmlFor="spotify-client-id">Spotify Client ID</Label><Input id="spotify-client-id" maxLength={64} placeholder="Client ID do app no Spotify Developer Dashboard" value={spotifyDraft.clientId} onChange={event=>setSpotifyDraft(current=>({...current,clientId:event.target.value.replace(/[^A-Za-z0-9]/g,"")}))}/></div><div className="grid gap-2"><Label htmlFor="spotify-redirect-uri">Redirect URI</Label><Input id="spotify-redirect-uri" type="url" maxLength={300} value={spotifyDraft.redirectUri} onChange={event=>setSpotifyDraft(current=>({...current,redirectUri:event.target.value}))}/></div><div className="flex gap-2"><Button variant="outline" onClick={saveSpotify}><Save/>Salvar dados</Button><Button variant="spotify" onClick={()=>void connectSpotify()}><Link2/>{spotifyDraft.accessToken||spotifyDraft.refreshToken?"Reconectar":"Conectar Spotify"}</Button></div><p className="col-span-full text-[10px] text-muted-foreground">Cadastre exatamente esta Redirect URI no Spotify Developer Dashboard. Não é necessário Client Secret; a conexão usa OAuth PKCE. Os dados ficam em <b className="text-foreground">accusense-widget-config:spotify</b> no localStorage.</p>{spotifyMessage&&<p className="col-span-full text-[10px] text-spotify">{spotifyMessage}</p>}</div>}
           <div className="canvas relative min-h-[620px] overflow-auto p-12">
             <div className="relative mx-auto" style={{ width: size.width, height: size.height }}>
               <Widget spec={previewSpec} position={{ x: 0, y: 0 }} editable={false} resizable canvasWidth={900} canvasHeight={720} onDragEnd={() => undefined} onResize={resizeSelected} />
