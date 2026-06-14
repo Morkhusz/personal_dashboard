@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { readSpotifyConfig, spotifyFetch, SPOTIFY_WIDGET_EVENT } from "@/lib/spotify.client";
+import { readSpotifyConfig, spotifyFetch, SPOTIFY_WIDGET_EVENT } from "@/lib/spotify";
 
 const CANVAS_WIDTH = 1524;
 const CANVAS_HEIGHT = 792;

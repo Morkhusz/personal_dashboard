@@ -12,6 +12,7 @@ export type SpotifyConfig = {
 };
 
 export function readSpotifyConfig(): SpotifyConfig {
+  if (typeof window === "undefined") return { clientId: "", redirectUri: "" };
   try {
     const value = JSON.parse(localStorage.getItem(SPOTIFY_WIDGET_STORAGE_KEY) ?? "{}") as Partial<SpotifyConfig>;
     return {
@@ -25,6 +26,7 @@ export function readSpotifyConfig(): SpotifyConfig {
 }
 
 export function saveSpotifyConfig(config: SpotifyConfig) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(SPOTIFY_WIDGET_STORAGE_KEY, JSON.stringify(config));
   window.dispatchEvent(new Event(SPOTIFY_WIDGET_EVENT));
 }
