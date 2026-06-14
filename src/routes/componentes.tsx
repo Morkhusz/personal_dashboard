@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { readGitHubConfig, saveGitHubConfig, type GitHubConfig } from "@/lib/github";
 import { beginSpotifyAuthorization, completeSpotifyAuthorization, readSpotifyConfig, saveSpotifyConfig, type SpotifyConfig } from "@/lib/spotify";
 
 export const Route = createFileRoute("/componentes")({
@@ -34,6 +35,8 @@ function ComponentsPage() {
   const [exactValue, setExactValue] = useState("");
   const [spotifyDraft,setSpotifyDraft]=useState<SpotifyConfig>({clientId:"",redirectUri:""});
   const [spotifyMessage,setSpotifyMessage]=useState("");
+  const [githubDraft,setGitHubDraft]=useState<GitHubConfig>({token:"",owner:"",repositories:""});
+  const [githubMessage,setGitHubMessage]=useState("");
 
   useEffect(() => {
     try {
@@ -45,6 +48,7 @@ function ComponentsPage() {
     } catch { localStorage.removeItem(WIDGET_SIZES_STORAGE_KEY); }
   }, [specs]);
   useEffect(()=>{
+    setGitHubDraft(readGitHubConfig());
     const stored=readSpotifyConfig();
     setSpotifyDraft({...stored,redirectUri:stored.redirectUri||`${window.location.origin}/componentes`});
     const params=new URLSearchParams(window.location.search),code=params.get("code"),state=params.get("state"),oauthError=params.get("error");
@@ -91,6 +95,13 @@ function ComponentsPage() {
     return true;
   };
   const connectSpotify=async()=>{if(!saveSpotify())return;await beginSpotifyAuthorization(readSpotifyConfig())};
+  const saveGitHub=()=>{
+    const token=githubDraft.token.trim(),owner=githubDraft.owner.trim(),repositories=githubDraft.repositories.split(",").map(repo=>repo.trim()).filter(Boolean).join(", ");
+    if(!/^(gh[opusr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})$/.test(token)){setGithubMessage("Informe um Personal Access Token válido do GitHub.");return}
+    if(owner&&!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(owner)){setGithubMessage("Informe um usuário ou organização válido.");return}
+    if(repositories&&!owner&&repositories.split(",").some(repo=>!repo.trim().includes("/"))){setGithubMessage("Informe o proprietário ou use owner/repositório em cada item.");return}
+    const next={token,owner,repositories};saveGitHubConfig(next);setGitHubDraft(next);setGithubMessage("Configuração salva neste componente. O preview foi atualizado.");
+  };
 
   if (dashboardPreview) {
     return <Dashboard previewWidget={dashboardPreview} onPreviewResize={(next) => { setDashboardPreview((current) => current ? { ...current, ...next } : current); resizeSelected(next); }} onExitPreview={() => setDashboardPreview(null)} />;
@@ -129,6 +140,7 @@ function ComponentsPage() {
           </div>
 
           {selected.id==="spotify"&&<div className="mx-6 mt-5 grid grid-cols-[1fr_1fr_auto] items-end gap-3 rounded-xl border border-spotify/25 bg-spotify/5 p-4"><div className="grid gap-2"><Label htmlFor="spotify-client-id">Spotify Client ID</Label><Input id="spotify-client-id" maxLength={64} placeholder="Client ID do app no Spotify Developer Dashboard" value={spotifyDraft.clientId} onChange={event=>setSpotifyDraft(current=>({...current,clientId:event.target.value.replace(/[^A-Za-z0-9]/g,"")}))}/></div><div className="grid gap-2"><Label htmlFor="spotify-redirect-uri">Redirect URI</Label><Input id="spotify-redirect-uri" type="url" maxLength={300} value={spotifyDraft.redirectUri} onChange={event=>setSpotifyDraft(current=>({...current,redirectUri:event.target.value}))}/></div><div className="flex gap-2"><Button variant="outline" onClick={saveSpotify}><Save/>Salvar dados</Button><Button variant="spotify" onClick={()=>void connectSpotify()}><Link2/>{spotifyDraft.accessToken||spotifyDraft.refreshToken?"Reconectar":"Conectar Spotify"}</Button></div><p className="col-span-full text-[10px] text-muted-foreground">Cadastre exatamente esta Redirect URI no Spotify Developer Dashboard. Não é necessário Client Secret; a conexão usa OAuth PKCE. Os dados ficam em <b className="text-foreground">accusense-widget-config:spotify</b> no localStorage.</p>{spotifyMessage&&<p className="col-span-full text-[10px] text-spotify">{spotifyMessage}</p>}</div>}
+          {selected.id==="kanban"&&<div className="mx-6 mt-5 grid grid-cols-[1fr_0.7fr_1.2fr_auto] items-end gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4"><div className="grid gap-2"><Label htmlFor="github-token">Personal Access Token</Label><Input id="github-token" type="password" autoComplete="off" maxLength={255} placeholder="github_pat_… ou ghp_…" value={githubDraft.token} onChange={event=>setGitHubDraft(current=>({...current,token:event.target.value}))}/></div><div className="grid gap-2"><Label htmlFor="github-owner">Usuário ou organização</Label><Input id="github-owner" maxLength={39} placeholder="ex.: minha-org" value={githubDraft.owner} onChange={event=>setGitHubDraft(current=>({...current,owner:event.target.value}))}/></div><div className="grid gap-2"><Label htmlFor="github-repositories">Repositórios</Label><Input id="github-repositories" maxLength={500} placeholder="api, frontend ou owner/repo (separados por vírgula)" value={githubDraft.repositories} onChange={event=>setGitHubDraft(current=>({...current,repositories:event.target.value}))}/></div><Button onClick={saveGitHub}><Save/>Salvar e conectar</Button><p className="col-span-full text-[10px] text-muted-foreground">Crie um token fine-grained no GitHub com acesso de leitura a Issues. Se deixar “Repositórios” vazio, o widget lista issues atribuídas à conta. Os dados ficam em <b className="text-foreground">accusense-widget-config:github</b> no localStorage deste componente.</p>{githubMessage&&<p className="col-span-full text-[10px] text-primary">{githubMessage}</p>}</div>}
           <div className="canvas relative min-h-[620px] overflow-auto p-12">
             <div className="relative mx-auto" style={{ width: size.width, height: size.height }}>
               <Widget spec={previewSpec} position={{ x: 0, y: 0 }} editable={false} resizable canvasWidth={900} canvasHeight={720} onDragEnd={() => undefined} onResize={resizeSelected} />
