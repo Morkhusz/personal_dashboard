@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { githubFetch, GITHUB_WIDGET_EVENT, readGitHubConfig } from "@/lib/github";
 import { readSpotifyConfig, spotifyFetch, SPOTIFY_WIDGET_EVENT } from "@/lib/spotify";
 
 const CANVAS_WIDTH = 1524;
@@ -30,15 +31,6 @@ type Position = { x: number; y: number };
 export type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
 export type WidgetPreview = { id: string; width: number; height: number };
 type DashboardTab = { id: string; name: string; width: number; height: number; positions: Record<string, Position>; hiddenWidgets: string[] };
-
-const issues = [
-  ["polaris-api", "#428", "Corrigir cache do endpoint de métricas", "LC"],
-  ["market-insights-client", "#191", "Novo filtro por período no dashboard", "MR"],
-  ["tools-client", "#84", "Ajustar estados vazios da busca", "AV"],
-  ["scrape-engine", "#306", "Retry exponencial para jobs falhos", "TS"],
-  ["polaris-api", "#431", "Documentar webhooks de cobrança", "JP"],
-  ["market-insights-client", "#197", "Otimizar bundle de gráficos", "BI"],
-] as const;
 
 const pipelines = [
   ["polaris-api", "main", "2m atrás", "ok"],
@@ -79,18 +71,27 @@ function MetricBar({ value, tone = "blue" }: { value: number; tone?: "blue" | "a
 }
 
 function GitHubKanban() {
+  type GitHubIssue = { id:number;number:number;title:string;html_url:string;repository_url:string;user:{login:string}|null;labels:{name:string}[];pull_request?:unknown };
+  const [items,setItems]=useState<GitHubIssue[]>([]),[error,setError]=useState(""),[loading,setLoading]=useState(false);
+  const load=async()=>{const config=readGitHubConfig();if(!config.token){setItems([]);return}setLoading(true);try{const repositories=config.repositories.split(",").map(repo=>repo.trim()).filter(Boolean);const paths=repositories.length?repositories.map(repo=>`/repos/${repo.includes("/")?repo:`${config.owner}/${repo}`}/issues?state=open&per_page=30`):[`/user/issues?filter=all&state=open&per_page=60`];const responses=await Promise.all(paths.map(path=>githubFetch(path,config.token)));const data=await Promise.all(responses.map(response=>response.json() as Promise<GitHubIssue[]>));setItems(data.flat().filter(item=>!item.pull_request));setError("")}catch(e){setError(e instanceof Error?e.message:"Erro no GitHub")}finally{setLoading(false)}};
+  useEffect(()=>{void load();const id=window.setInterval(()=>void load(),60000);window.addEventListener(GITHUB_WIDGET_EVENT,load);return()=>{clearInterval(id);window.removeEventListener(GITHUB_WIDGET_EVENT,load)}},[]);
+  const configured=Boolean(readGitHubConfig().token);
+  if(!configured)return <div className="grid h-full place-items-center text-center"><div><GitPullRequest className="mx-auto size-9 text-primary"/><b className="mt-2 block text-sm">GitHub não configurado</b><span className="text-[9px] text-muted-foreground">Configure este widget em Componentes.</span></div></div>;
+  const normalized=items.map(item=>[item.repository_url.split("/").pop()??"repo",`#${item.number}`,item.title,(item.user?.login??"GH").slice(0,2).toUpperCase(),item.html_url,item.labels.map(label=>label.name.toLowerCase())] as const);
   const columns = [
-    ["Backlog", "green", issues.slice(0, 2)], ["Em progresso", "amber", issues.slice(2, 4)],
-    ["Revisando", "purple", issues.slice(4, 5)], ["Pronto", "amber", issues.slice(5)],
+    ["Backlog", "green", normalized.filter(item=>!item[5].some(label=>label.includes("progress")||label.includes("review")||label.includes("done")))],
+    ["Em progresso", "amber", normalized.filter(item=>item[5].some(label=>label.includes("progress")))],
+    ["Revisando", "purple", normalized.filter(item=>item[5].some(label=>label.includes("review")))],
+    ["Pronto", "amber", normalized.filter(item=>item[5].some(label=>label.includes("done")))],
   ] as const;
   return <div className="grid h-full grid-cols-4 gap-2">{columns.map(([name, tone, cards]) => <div className="min-w-0 overflow-hidden rounded-lg bg-secondary/45" key={name}>
     <div className="flex items-center gap-1.5 border-b border-border px-2 py-2 text-[10px] font-semibold"><span className={cn("h-1.5 w-1.5 rounded-full", toneClasses[tone].bg)} /> <span className="truncate">{name}</span><span className="ml-auto rounded-full bg-muted px-1.5 text-muted-foreground">{cards.length}</span></div>
-    <div className="h-[280px] space-y-2 overflow-y-auto p-2">{cards.map(([repo, num, title, avatar]) => <div className="rounded-lg border border-border bg-card p-2.5 transition hover:border-primary/60 hover:brightness-110" key={num}>
+    <div className="h-[280px] space-y-2 overflow-y-auto p-2">{cards.map(([repo, num, title, avatar, url]) => <a href={url} target="_blank" rel="noreferrer" className="block rounded-lg border border-border bg-card p-2.5 transition hover:border-primary/60 hover:brightness-110" key={`${repo}-${num}`}>
       <div className="flex items-center gap-1 text-[9px] text-muted-foreground"><Code2 className="size-3"/><span className="truncate">{repo}</span><span>{num}</span></div>
       <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-foreground">{title}</p>
       <span className="mt-2 grid size-5 place-items-center rounded-full bg-accent text-[8px] font-bold text-accent-foreground">{avatar}</span>
-    </div>)}</div>
-  </div>)}</div>;
+    </a>)}{!cards.length&&<p className="px-2 py-4 text-center text-[8px] text-muted-foreground">Nenhum item</p>}</div>
+  </div>)}{(loading||error)&&<div className={cn("absolute bottom-2 left-3 right-3 rounded-md px-2 py-1 text-[8px]",error?"bg-red/10 text-red":"bg-secondary text-muted-foreground")}>{error||"Atualizando GitHub…"}</div>}</div>;
 }
 
 function SpotifyWidget() {
