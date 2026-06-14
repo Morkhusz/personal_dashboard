@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
   Bot, CheckCircle2, ChevronLeft, ChevronRight, CloudSun, Code2, Edit3, Gauge, GitPullRequest,
-  Grip, LayoutDashboard, Minus, PanelRight, Pause, Play, Plus, RefreshCcw, RotateCcw, Settings, SkipBack, SkipForward, Sparkles,
-  Star, Sun, Timer, Trash2, Users, Wind, XCircle,
+  Clock3, Grip, LayoutDashboard, Minus, PanelRight, Pause, Play, Plus, RefreshCcw, RotateCcw, Settings, SkipBack, SkipForward, Sparkles,
+  Square, Star, StickyNote, Sun, Timer, Trash2, Users, Wind, X, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { githubFetch, GITHUB_WIDGET_EVENT, readGitHubConfig } from "@/lib/github";
@@ -19,6 +20,7 @@ const CANVAS_HEIGHT = 792;
 const LEGACY_STORAGE_KEY = "accusense-layout-v1";
 const TABS_STORAGE_KEY = "accusense-dashboard-tabs-v1";
 const HTML_TITLE_STORAGE_KEY = "accusense-html-title-v1";
+const STICKY_NOTES_STORAGE_KEY = "accusense-sticky-notes-v1";
 export const WIDGET_SIZES_STORAGE_KEY = "accusense-widget-sizes-v1";
 export const WIDGET_SIZES_EVENT = "accusense-widget-sizes-updated";
 const toneClasses = {
@@ -31,6 +33,7 @@ type Position = { x: number; y: number };
 export type WidgetSpec = { id: string; title: string; icon: ReactNode; width: number; height: number; x: number; y: number; content: ReactNode };
 export type WidgetPreview = { id: string; width: number; height: number };
 type DashboardTab = { id: string; name: string; width: number; height: number; positions: Record<string, Position>; hiddenWidgets: string[] };
+type StickyNoteItem = { id: string; x: number; y: number; text: string; alarmAt?: number; ringing?: boolean };
 
 const pipelines = [
   ["polaris-api", "main", "2m atrás", "ok"],
