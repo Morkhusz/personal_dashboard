@@ -83,12 +83,14 @@ function ComponentsPage() {
   };
   const saveSpotify=()=>{
     const clientId=spotifyDraft.clientId.trim(),redirectUri=spotifyDraft.redirectUri.trim();
-    if(!/^[A-Za-z0-9]{16,64}$/.test(clientId)){setSpotifyMessage("Informe um Client ID válido do Spotify.");return}
-    try { const url=new URL(redirectUri);if(url.protocol!=="https:"&&url.hostname!=="localhost")throw new Error(); } catch { setSpotifyMessage("Informe uma URI HTTPS válida (ou localhost).");return }
-    saveSpotifyConfig({...readSpotifyConfig(),clientId,redirectUri});
+    if(!/^[A-Za-z0-9]{16,64}$/.test(clientId)){setSpotifyMessage("Informe um Client ID válido do Spotify.");return false}
+    try { const url=new URL(redirectUri);if(url.protocol!=="https:"&&url.hostname!=="localhost")throw new Error(); } catch { setSpotifyMessage("Informe uma URI HTTPS válida (ou localhost).");return false }
+    const current=readSpotifyConfig(),sameApp=current.clientId===clientId;
+    saveSpotifyConfig({clientId,redirectUri,accessToken:sameApp?current.accessToken:undefined,refreshToken:sameApp?current.refreshToken:undefined,expiresAt:sameApp?current.expiresAt:undefined});
     setSpotifyDraft(readSpotifyConfig());setSpotifyMessage("Configuração salva neste componente.");
+    return true;
   };
-  const connectSpotify=async()=>{saveSpotify();const config={...readSpotifyConfig(),clientId:spotifyDraft.clientId.trim(),redirectUri:spotifyDraft.redirectUri.trim()};if(config.clientId&&config.redirectUri)await beginSpotifyAuthorization(config)};
+  const connectSpotify=async()=>{if(!saveSpotify())return;await beginSpotifyAuthorization(readSpotifyConfig())};
 
   if (dashboardPreview) {
     return <Dashboard previewWidget={dashboardPreview} onPreviewResize={(next) => { setDashboardPreview((current) => current ? { ...current, ...next } : current); resizeSelected(next); }} onExitPreview={() => setDashboardPreview(null)} />;
